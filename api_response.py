@@ -9,7 +9,10 @@ class APIResponse():
                 status_code = 500
 
             else:
-                status_code = response['code']
+                if 'code' in response:
+                    status_code = response['code']
+                else:
+                    status_code = 500
                 
             return  Response(content=json.dumps(response),
                 status_code=status_code,

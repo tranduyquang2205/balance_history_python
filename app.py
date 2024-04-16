@@ -21,6 +21,7 @@ class LoginDetails(BaseModel):
 @app.post('/get_balance', tags=["get_balance"])
 def get_balance_api(input: LoginDetails):
     try:
+        print(input.proxy_list)
         nab = Namabank(input.proxy_list)
         balance = nab.get_balance(input.username, input.password,input.account_number)
         return APIResponse.json_format(balance)
