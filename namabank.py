@@ -8,6 +8,7 @@ import requests
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Cipher import PKCS1_v1_5
 import base64
+import random
 # Your RSA key (Replace with the actual key)
 key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0+B5KsZ/Q4c252WDMHVf4TPtoWwfTiikKu7NGkGaleBWZbDTyql4Cxf6aTMrIyqfYShGCVFWhJgNSmAbqkzvRr9BJVbyTVXppbTbeCKplpFso6IoMBXMizq3P+5VyvS+YFhPrCzDv5iFvMgnmkjlRm3rUZ0Nd22UdIh1Rvb3A/AnnzHR1PEqyYaS4/kzHgwKO0H404QTTA8Js67pA/WC4Bv/6fnE/GXMwsoWzZXwPeofSBkXFNsj2nrXROUfDzUmUQaMZT4monOt1ihzyRiF7+yHk6jmtFNU8KgrX2rnkqtpSCl524zFR9fztZplq2VqvpuefQNuBy3y5Ss1EnY24wIDAQAB\n-----END PUBLIC KEY-----"
 
@@ -34,8 +35,18 @@ def generate_random_string(length=10):
     import string
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
 class Namabank:
-    def __init__(self):
+    def __init__(self,proxy_list=None):
         self.timeout_seconds = 15
+        self.proxy_list = proxy_list
+        if self.proxy_list:
+            self.random_proxy_info = random.choice(self.proxy_list)
+            proxy_host, proxy_port, username, password = self.random_proxy_info.split(':')
+            self.proxies = {
+                'http': f'socks5://{username}:{password}@{proxy_host}:{proxy_port}',
+                'https': f'socks5://{username}:{password}@{proxy_host}:{proxy_port}'
+            }
+        else:
+            self.proxies = None
         
     def login(self,username, password,session_token):
         global key
@@ -66,8 +77,7 @@ class Namabank:
             'username': username,
             'password': password,
         }
-        
-        response = requests.post('https://ops-api.namabank.com.vn/auth/personal/v3/login', headers=headers, json=data)
+        response = requests.post('https://ops-api.namabank.com.vn/auth/personal/v3/login', headers=headers, json=data,proxies=self.proxies)
         response_data = response.json()
         if response_data.get('data') and response_data.get('code') == 2000 and response_data['data'].get('auth') and response_data['data']['auth'].get('token'):
             response_data['token']=response_data['data']['auth']['token']
@@ -107,7 +117,7 @@ class Namabank:
             'txnTypes': []
         }
         
-        response = requests.post('https://ops-api.namabank.com.vn/user/transactions', headers=headers, json=data)
+        response = requests.post('https://ops-api.namabank.com.vn/user/transactions', headers=headers, json=data,proxies=self.proxies)
         return (response.text)
 
     def get_transaction(self,username,password,account_number,from_date,to_date,limit):
@@ -146,7 +156,11 @@ class Namabank:
         device_id = login_info['deviceID']
         token = login_info['token']
         ws = websocket.WebSocket()
-        ws.connect('wss://ops-socket.namabank.com.vn/intelin')
+        if self.proxy_list:
+            proxy_host, proxy_port, proxy_username, proxy_password = self.random_proxy_info.split(':')
+            ws.connect("wss://ops-socket.namabank.com.vn/intelin",http_proxy_host=proxy_host, http_proxy_port=int(proxy_port), proxy_type="socks5", http_proxy_auth=(proxy_username, proxy_password))
+        else:
+            ws.connect('wss://ops-socket.namabank.com.vn/intelin')
         ws.send(json.dumps(socket_info))
         step = 1
         start_time = time.time()
@@ -184,7 +198,11 @@ class Namabank:
                     'sign': sign
                 }
         ws = websocket.WebSocket()
-        ws.connect('wss://ops-socket.namabank.com.vn/intelin')
+        if self.proxy_list:
+            proxy_host, proxy_port, proxy_username, proxy_password = self.random_proxy_info.split(':')
+            ws.connect("wss://ops-socket.namabank.com.vn/intelin",http_proxy_host=proxy_host, http_proxy_port=int(proxy_port), proxy_type="socks5", http_proxy_auth=(proxy_username, proxy_password))
+        else:
+            ws.connect('wss://ops-socket.namabank.com.vn/intelin')
         ws.send(json.dumps(socket_info))
         step = 1
         start_time = time.time()
@@ -233,8 +251,15 @@ class Namabank:
                     break
                 else:
                     step += 1
+# proxy_list = [
+# '103.188.164.191:0508:linhvudieu329:l0Ks3Jp',          
+# '103.189.72.188:0508:linhvudieu329:l0Ks3Jp',          
+# '103.189.78.176:0508:linhvudieu329:l0Ks3Jp',          
+# '103.189.74.199:0508:linhvudieu329:l0Ks3Jp',          
+# '103.189.76.206:0508:linhvudieu329:l0Ks3Jp',          
+# ]
+# nab = Namabank(proxy_list)
 
-# nab = Namabank()
 # balance = nab.get_balance('0935718805','Dvan7979#','401224973500001')
 # print(balance)
 # transaction = nab.get_transaction('0935718805','Dvan7979#','401224973500001',"13/04/2024","13/04/2024",1)
