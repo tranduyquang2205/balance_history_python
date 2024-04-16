@@ -7,3 +7,4 @@ websocket-client==1.5.1
 pydantic
 requests
 pycryptodomex
+PySocks

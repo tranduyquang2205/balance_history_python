@@ -12,6 +12,7 @@ class APIResponse():
                 if 'code' in response:
                     status_code = response['code']
                 else:
+                    response = {'code': 500, 'success': False, 'message': response}
                     status_code = 500
                 
             return  Response(content=json.dumps(response),
