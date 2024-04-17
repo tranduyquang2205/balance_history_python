@@ -239,10 +239,17 @@ class Namabank:
                     for account in message_data['data']['account']:
                         if account['accountNumber'] == account_number:
                             del account['accountNumber']
-                            result =  {'code':200,'success': True, 'message': 'Thành công',
-                                    'data':{
-                                        'account_number': account_number,
-                            }}
+                            if int(account['balance']) < 0:
+                                result =  {'code':448,'success': False, 'message': 'Blocked account with negative balances!',
+                                        'data': {
+                                            'account_number': account_number,
+                                        }
+                                }
+                            else:
+                                result =  {'code':200,'success': True, 'message': 'Thành công',
+                                        'data':{
+                                            'account_number': account_number,
+                                }}
                             
                             result['data'].update(account)
                             return result
@@ -260,7 +267,7 @@ class Namabank:
 # ]
 # nab = Namabank(proxy_list)
 
-# balance = nab.get_balance('0935718805','Dvan7979#','401224973500001')
+# balance = nab.get_balance('0328826006','Lananh06@','710229719900001')
 # print(balance)
 # transaction = nab.get_transaction('0935718805','Dvan7979#','401224973500001',"13/04/2024","13/04/2024",1)
 

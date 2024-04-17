@@ -44,6 +44,11 @@
     },
     {
         "success": false,
+        "code": 448,
+        "message": "Blocked account with negative balances!"
+    },
+    {
+        "success": false,
         "code": 449,
         "message": "Blocked account!"
     },
