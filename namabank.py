@@ -12,9 +12,9 @@ import random
 # Your RSA key (Replace with the actual key)
 key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0+B5KsZ/Q4c252WDMHVf4TPtoWwfTiikKu7NGkGaleBWZbDTyql4Cxf6aTMrIyqfYShGCVFWhJgNSmAbqkzvRr9BJVbyTVXppbTbeCKplpFso6IoMBXMizq3P+5VyvS+YFhPrCzDv5iFvMgnmkjlRm3rUZ0Nd22UdIh1Rvb3A/AnnzHR1PEqyYaS4/kzHgwKO0H404QTTA8Js67pA/WC4Bv/6fnE/GXMwsoWzZXwPeofSBkXFNsj2nrXROUfDzUmUQaMZT4monOt1ihzyRiF7+yHk6jmtFNU8KgrX2rnkqtpSCl524zFR9fztZplq2VqvpuefQNuBy3y5Ss1EnY24wIDAQAB\n-----END PUBLIC KEY-----"
 
-def Ht(e, key):
+def Ht(e):
     # Load the RSA key from the key string (in PEM format)
-    rsa_key = RSA.import_key(key)
+    rsa_key = RSA.import_key("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0+B5KsZ/Q4c252WDMHVf4TPtoWwfTiikKu7NGkGaleBWZbDTyql4Cxf6aTMrIyqfYShGCVFWhJgNSmAbqkzvRr9BJVbyTVXppbTbeCKplpFso6IoMBXMizq3P+5VyvS+YFhPrCzDv5iFvMgnmkjlRm3rUZ0Nd22UdIh1Rvb3A/AnnzHR1PEqyYaS4/kzHgwKO0H404QTTA8Js67pA/WC4Bv/6fnE/GXMwsoWzZXwPeofSBkXFNsj2nrXROUfDzUmUQaMZT4monOt1ihzyRiF7+yHk6jmtFNU8KgrX2rnkqtpSCl524zFR9fztZplq2VqvpuefQNuBy3y5Ss1EnY24wIDAQAB\n-----END PUBLIC KEY-----")
 
     # Encrypt the message using PKCS1 padding
     cipher = PKCS1_v1_5.new(rsa_key)
@@ -38,6 +38,8 @@ class Namabank:
     def __init__(self,proxy_list=None):
         self.timeout_seconds = 15
         self.proxy_list = proxy_list
+        self.access_token = ''
+        self.device_id = ''
         if self.proxy_list:
             self.random_proxy_info = random.choice(self.proxy_list)
             proxy_host, proxy_port, username, password = self.random_proxy_info.split(':')
@@ -50,7 +52,7 @@ class Namabank:
         
     def login(self,username, password,session_token):
         global key
-        password = Ht(hashlib.md5(password.encode()).hexdigest(), key)
+        password = Ht(hashlib.md5(password.encode()).hexdigest())
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.100.0',
@@ -77,16 +79,45 @@ class Namabank:
             'username': username,
             'password': password,
         }
-        response = requests.post('https://ops-api.namabank.com.vn/auth/personal/v3/login', headers=headers, json=data,proxies=self.proxies)
+        response = requests.post('https://ops-api.namabank.com.vn/auth/personal/v5/login', headers=headers, json=data,proxies=self.proxies)
         response_data = response.json()
         if response_data.get('data') and response_data.get('code') == 2000 and response_data['data'].get('auth') and response_data['data']['auth'].get('token'):
+            self.access_token = response_data['data']['auth']['token']
+            self.device_id = response_data['data']['auth']['deviceID']
             response_data['token']=response_data['data']['auth']['token']
             response_data['deviceID']=response_data['data']['auth']['deviceID']
             return response_data
         else:
             return response_data
+    def get_info(self,session_token):
 
-    def check_history(self,device_id, token, account_number, from_date, to_date, limit):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.100.0',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://ops.namabank.com.vn/',
+            'Content-Type': 'application/json',
+            'token': self.access_token,
+            'device-info': 'Windows%3A10%3AEdge%3A11%3AUnknown',
+            'app-version': '2.0.0.0:Web',
+            'device-id': '',
+            'browserId': '2.2.6.0',
+            'checking': 'c02a9c51a0c86ea241edaff3d8f106c0',
+            'Origin': 'https://ops.namabank.com.vn',
+            'Connection': 'keep-alive',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache',
+        }
+        data = {}
+        response = requests.post('https://ops-api.namabank.com.vn/user/profile/customer', headers=headers, json=data,proxies=self.proxies)
+        response_data = response.json()
+        return response_data
+
+    def check_history(self, account_number, from_date, to_date, limit):
         headers = {
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -101,11 +132,11 @@ class Namabank:
             'Sec-Fetch-Site': 'same-site',
             'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
             'checking': '05afd4d8e446c3cadf1460eb9830876c',
-            'device-id': device_id,
+            'device-id': self.device_id,
             'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
             'sec-ch-ua-mobile': '?1',
             'sec-ch-ua-platform': 'Android',
-            'token': token
+            'token': self.access_token
         }
         
         data = {
@@ -153,8 +184,6 @@ class Namabank:
             'success': False,
             'message': "Unknown Error!"
         }
-        device_id = login_info['deviceID']
-        token = login_info['token']
         ws = websocket.WebSocket()
         if self.proxy_list:
             proxy_host, proxy_port, proxy_username, proxy_password = self.random_proxy_info.split(':')
@@ -170,7 +199,7 @@ class Namabank:
             message = ws.recv()
             
             if message and step == 1:
-                self.check_history(device_id, token, account_number, from_date, to_date, limit)
+                self.check_history(account_number, from_date, to_date, limit)
                 step += 1
             else:
                 message_data = json.loads(message)
@@ -207,9 +236,11 @@ class Namabank:
         step = 1
         start_time = time.time()
         while True:
+            
             if time.time() - start_time > self.timeout_seconds:
                 return {'code': 408, 'success': False, 'message': 'Timeout occurred'}
             message = ws.recv()
+
             if message and step == 1:
                 login_info = self.login(username, password,session_token)
                 if not ( login_info.get('data') and login_info.get('code') == 2000 and login_info['data'].get('auth') and login_info['data']['auth'].get('token')):
@@ -231,12 +262,13 @@ class Namabank:
                     'success': False,
                     'message': "Unknown Error!"
                 }
+                self.get_info(session_token)
                 step += 1
             else:
                 message_data = json.loads(message)
-                if 'data' in message_data and 'account' in message_data['data']:
+                if 'data' in message_data and 'dataPacket' in message_data['data'] and 'account' in message_data['data']['dataPacket'] and message_data['data']['dataPacket']['account']:
                     ws.close()
-                    for account in message_data['data']['account']:
+                    for account in message_data['data']['dataPacket']['account']:
                         if account['accountNumber'] == account_number:
                             del account['accountNumber']
                             if int(account['balance']) < 0:
